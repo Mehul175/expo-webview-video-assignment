@@ -13,9 +13,13 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.expowebviewvideoassignment",
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.yourcompany.expowebviewvideoassignment",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -38,6 +42,11 @@
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b3f57a2b-ee57-4b82-a588-52d18ca76887"
+      }
     }
   }
 }
