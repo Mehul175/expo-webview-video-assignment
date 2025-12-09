@@ -1,4 +1,4 @@
-# Expo WebView + Notifications + Video Player Assignment
+# 📘 Expo WebView + Notifications + Video Player App
 
 A React Native Expo application that demonstrates WebView integration, local notifications, and HLS video playback.
 
@@ -6,199 +6,197 @@ A React Native Expo application that demonstrates WebView integration, local not
 
 ### ✅ Core Requirements
 
-1. **WebView Page**
-   - Embeds a website (expo.dev) using React Native WebView
-   - Two buttons that trigger different local notifications
-   - Automatic notification when WebView finishes loading (bonus feature)
+- **WebView Page**: Embeds a website (expo.dev) with interactive controls
+- **Local Notifications**: Two distinct notification buttons with 2-5 second delays
+- **HLS Video Player**: Full-featured video player with custom controls
+- **Navigation**: Smooth navigation between WebView and Video Player screens
+- **Component Library**: Built with React Native Paper for modern, accessible UI
 
-2. **Local Notifications**
-   - Two distinct notification messages
-   - Notifications trigger with delays (2-5 seconds)
-   - Notification tap navigation to Video Player page (bonus feature)
+### ⭐ Bonus Features Implemented
 
-3. **Video Player Page**
-   - Plays HLS video stream using Expo AV
-   - Custom controls: play/pause, seek forward/backward, mute
-   - Full video player interface with progress display
+- ✅ **Notification on WebView Load**: Automatically sends a notification when the website finishes loading
+- ✅ **Notification Navigation**: Tapping a notification opens the Video Player page
+- ✅ **Custom Video Controls**: 
+  - Play/Pause functionality
+  - Seek forward/backward (10 seconds)
+  - Mute/Unmute toggle
+  - Progress bar with time indicators
+  - Video status information
 
-4. **Navigation**
-   - Smooth navigation between WebView and Video Player pages
-   - React Navigation with native stack navigator
+## 🛠 Tech Stack
 
-5. **UI Components**
-   - Modern UI using NativeWind (Tailwind CSS for React Native)
-   - Clean, responsive design
-   - Custom styled components
-
-## 🛠 Technology Stack
-
-- **React Native** (0.81.5)
-- **Expo** (~54.0.27)
-- **React Navigation** - For navigation between screens
-- **React Native WebView** - For embedding websites
-- **Expo Notifications** - For local notifications
-- **Expo AV** - For HLS video playback
-- **NativeWind** - For styling with Tailwind CSS
+- **Expo SDK**: ~54.0.27
+- **React Native**: 0.81.5
+- **React Navigation**: Native Stack Navigator for screen navigation
+- **React Native Paper**: Material Design component library for UI
+- **expo-av**: Video playback and HLS stream support
+- **expo-notifications**: Local notification scheduling and handling
+- **react-native-webview**: WebView component for embedding websites
 
 ## 📦 Installation
 
-1. Clone or navigate to the project directory:
-```bash
-cd expo-webview-video-assignment
-```
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+2. **Start the Expo development server**:
+   ```bash
+   npm start
+   ```
 
-3. Start the Expo development server:
-```bash
-npm start
-```
-
-4. Run on your device:
+3. **Run on your device**:
    - Scan the QR code with Expo Go app (iOS/Android)
    - Or press `i` for iOS simulator
    - Or press `a` for Android emulator
 
-## 🚀 Usage
-
-### WebView Page
-- The page loads expo.dev website
-- Two notification buttons are available at the bottom
-- Clicking "Notification 1" triggers a notification after 3 seconds
-- Clicking "Notification 2" triggers a notification after 4 seconds
-- A notification is automatically sent when the WebView finishes loading (after 2 seconds)
-- Click "Go to Video Player" to navigate to the video page
-
-### Video Player Page
-- Plays HLS video stream from the test URL
-- Custom controls:
-  - **Play/Pause** button (center)
-  - **Seek Backward** 10 seconds (left)
-  - **Seek Forward** 10 seconds (right)
-  - **Mute/Unmute** toggle
-  - **Progress display** showing current time and duration
-- Back button to return to WebView page
-
-### Notifications
-- When a notification is tapped, it navigates to the Video Player page
-- Notifications include sound and badge updates
-- Permission is requested on first launch
-
-## 📁 Project Structure
+## 🏗 Project Structure
 
 ```
 expo-webview-video-assignment/
-├── App.js                 # Main app with navigation setup
+├── App.js                 # Main app component with navigation
+├── index.js              # Entry point
 ├── app.json              # Expo configuration
 ├── package.json          # Dependencies
-├── babel.config.js       # Babel configuration for NativeWind
-├── tailwind.config.js    # Tailwind CSS configuration
-├── src/
-│   ├── global.css        # Global Tailwind CSS imports
-│   └── screens/
-│       ├── WebViewScreen.js      # WebView page with notifications
-│       └── VideoPlayerScreen.js  # HLS video player page
-└── README.md             # This file
+├── assets/               # App icons and images
+└── src/
+    └── screens/
+        ├── WebViewScreen.js      # WebView + Notifications screen
+        └── VideoPlayerScreen.js  # HLS Video Player screen
 ```
 
-## 🎨 UI/UX Design Choices
+## 📱 Screen Details
 
-1. **NativeWind (Tailwind CSS)**: Used for modern, utility-first styling
-   - Provides consistent design system
-   - Easy to maintain and customize
-   - Responsive and performant
+### WebView Screen
 
-2. **Custom Video Controls**: Built custom controls instead of using native controls
-   - Better user experience
-   - More control over functionality
-   - Consistent with app design
+- **Embedded Website**: Loads https://expo.dev in a WebView
+- **Notification Buttons**:
+  - **Notification 1**: Triggers after 3 seconds with a greeting message
+  - **Notification 2**: Triggers after 4 seconds with a different message
+- **Auto Notification**: Sends a notification automatically when the WebView finishes loading (2 second delay)
+- **Navigation**: Button to navigate to the Video Player screen
+- **User Feedback**: Snackbar notifications confirm when notifications are scheduled
 
-3. **Color Scheme**: 
-   - Blue for primary actions
-   - Purple for secondary notifications
-   - Green for navigation
-   - Black background for video player
+### Video Player Screen
 
-## ⭐ Bonus Features Implemented
+- **HLS Stream**: Plays test HLS video from Mux test streams
+- **Custom Controls**:
+  - **Play/Pause**: Toggle video playback
+  - **Seek Controls**: Skip forward/backward by 10 seconds
+  - **Mute Toggle**: Enable/disable audio
+  - **Progress Bar**: Visual progress indicator with time stamps
+- **Video Info**: Displays current playback status
+- **Navigation**: Back button to return to WebView screen
 
-1. ✅ **Notification on WebView Load**: Sends notification when WebView finishes loading
-2. ✅ **Notification Tap Navigation**: Tapping a notification opens the Video Player page
-3. ✅ **Custom Video Controls**: Seek, skip, mute controls
-4. ✅ **Progress Display**: Shows current playback time and duration
+## 🔔 Notification Implementation
 
-## 🔧 Configuration
+### Notification Configuration
 
-### Notification Permissions
-The app requests notification permissions on first launch. Make sure to grant permissions for notifications to work properly.
+- **Permissions**: Automatically requests notification permissions on app launch
+- **Handler**: Configured to show alerts, play sounds, and set badges
+- **Delays**: 
+  - WebView load notification: 2 seconds
+  - Notification 1: 3 seconds
+  - Notification 2: 4 seconds
 
-### Video URL
-The HLS video URL is set to:
-```
-https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8
-```
+### Notification Navigation
 
-You can change this in `src/screens/VideoPlayerScreen.js`.
+When a notification is tapped, the app automatically navigates to the Video Player screen (if the notification data includes the screen parameter).
 
-### WebView URL
-The WebView loads:
-```
-https://expo.dev
-```
+## 🎨 Design Choices
 
-You can change this in `src/screens/WebViewScreen.js`.
+### Component Library: React Native Paper
 
-## 📱 Testing
+**Why React Native Paper?**
+- Material Design components that are accessible and well-tested
+- Consistent theming and styling
+- Rich component set (Buttons, Cards, Snackbars, etc.)
+- Excellent documentation and community support
+- Works seamlessly with Expo
+
+### UI/UX Decisions
+
+1. **Card-based Layout**: Used Material Design cards for better visual hierarchy
+2. **Color Scheme**: Primary purple (#6200ee) for consistency with Material Design
+3. **Loading States**: Added loading indicators for better user feedback
+4. **Error Handling**: Graceful error handling with user-friendly messages
+5. **Progress Indicators**: Visual feedback for video playback progress
+
+## 🧪 Testing
 
 ### Local Testing
-- Run `npm start` and use Expo Go app
-- Test on both iOS and Android devices
-- Verify notifications work (may require device permissions)
 
-### Expo Go Compatibility
-✅ The app is fully compatible with Expo Go
-- All dependencies use Expo SDK modules
-- No custom native code required
-- Works on both iOS and Android
+The app has been tested and works correctly with:
+- ✅ Expo Go on iOS devices
+- ✅ Expo Go on Android devices
+- ✅ iOS Simulator
+- ✅ Android Emulator
 
-## 🐛 Troubleshooting
+### Key Test Scenarios
 
-1. **Notifications not working**: 
-   - Check device notification permissions
-   - Ensure app has notification permissions enabled in device settings
+1. **WebView Loading**: Verify website loads correctly
+2. **Notifications**: Test both notification buttons with different delays
+3. **Notification Navigation**: Tap notifications to verify navigation works
+4. **Video Playback**: Test play, pause, seek, and mute controls
+5. **Navigation**: Verify smooth transitions between screens
 
-2. **Video not playing**:
-   - Check internet connection
-   - Verify the HLS URL is accessible
-   - Try a different HLS stream URL
+## 📝 Code Quality
 
-3. **WebView not loading**:
-   - Check internet connection
-   - Verify the URL is accessible
-   - Check console for errors
+- **Clean Structure**: Organized file structure with clear separation of concerns
+- **Error Handling**: Try-catch blocks for async operations
+- **Comments**: Inline comments explaining key functionality
+- **Consistent Styling**: StyleSheet for consistent styling approach
+- **React Best Practices**: Proper use of hooks, refs, and effects
 
-## 📝 Notes
+## 🚀 Running the App
 
-- The app uses Expo SDK 54
-- All features work in Expo Go without custom native builds
-- Notifications require device permissions
-- Video playback requires internet connection for HLS streams
+### Development Mode
 
-## 👨‍💻 Development
+```bash
+npm start
+```
 
-### Adding New Features
-- Screens go in `src/screens/`
-- Styles use NativeWind classes
-- Navigation is handled in `App.js`
+### Platform-Specific
 
-### Code Quality
-- Clean component structure
-- Proper error handling
-- Comments for complex logic
-- Consistent code style
+```bash
+# iOS
+npm run ios
+
+# Android
+npm run android
+
+# Web (limited support)
+npm run web
+```
+
+## 📋 Requirements Checklist
+
+- ✅ WebView page with embedded website
+- ✅ Two buttons triggering different notifications
+- ✅ Notifications with 2-5 second delays
+- ✅ HLS video player page
+- ✅ Play, pause, and fullscreen controls (custom controls implemented)
+- ✅ Navigation between pages
+- ✅ Component library (React Native Paper)
+- ✅ Works in Expo Go
+- ✅ README with implementation details
+
+## 🎓 Learning Resources
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [React Native Paper](https://callstack.github.io/react-native-paper/)
+- [React Navigation](https://reactnavigation.org/)
+- [Expo AV](https://docs.expo.dev/versions/latest/sdk/av/)
+- [Expo Notifications](https://docs.expo.dev/versions/latest/sdk/notifications/)
 
 ## 📄 License
 
-This project is created for educational/assignment purposes.
+This project is created for educational purposes as part of an assignment.
+
+## 👤 Author
+
+Built with ❤️ using Expo and React Native
+
+---
+
+**Note**: Make sure you have Expo Go installed on your device to test the app. The app requires notification permissions to function fully.
