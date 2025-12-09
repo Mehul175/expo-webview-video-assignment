@@ -1,11 +1,27 @@
+/**
+ * WebViewScreen Component
+ * 
+ * Displays a WebView with notification functionality:
+ * - Embeds expo.dev website
+ * - Two notification buttons with different delays
+ * - Auto-notification when WebView finishes loading
+ * - Navigation to Video Player screen
+ * - Snackbar feedback for user actions
+ */
+
 import React, { useRef, useState } from 'react';
 import { View, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Card, Text, Portal, Snackbar } from 'react-native-paper';
+import { moderateScale, moderateVerticalScale } from 'react-native-size-matters';
 
-// Configure notification handler
+// ==================== Notification Configuration ====================
+
+/**
+ * Configure notification handler behavior
+ */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -14,14 +30,22 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// ==================== Component ====================
+
 export default function WebViewScreen() {
   const navigation = useNavigation();
+
+  // ==================== State Management ====================
   const webViewRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  // Request notification permissions
+  // ==================== Effects ====================
+
+  /**
+   * Request notification permissions on component mount
+   */
   React.useEffect(() => {
     (async () => {
       const { status } = await Notifications.requestPermissionsAsync();
@@ -34,29 +58,9 @@ export default function WebViewScreen() {
     })();
   }, []);
 
-  // Schedule notification with delay
-  const scheduleNotification = async (title, body, delaySeconds) => {
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          sound: true,
-          data: { screen: 'VideoPlayer' },
-        },
-        trigger: {
-          seconds: delaySeconds,
-        },
-      });
-      setSnackbarMessage(`Notification scheduled! It will appear in ${delaySeconds} seconds.`);
-      setSnackbarVisible(true);
-    } catch (error) {
-      console.error('Error scheduling notification:', error);
-      Alert.alert('Error', 'Failed to schedule notification');
-    }
-  };
-
-  // Handle notification tap to navigate
+  /**
+   * Handle notification tap to navigate to Video Player screen
+   */
   React.useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener(
       (response) => {
@@ -70,7 +74,45 @@ export default function WebViewScreen() {
     return () => subscription.remove();
   }, [navigation]);
 
-  // Send notification when WebView finishes loading (Bonus feature)
+  // ==================== Notification Functions ====================
+
+  /**
+   * Schedule a notification with specified delay
+   * @param {string} title - Notification title
+   * @param {string} body - Notification body text
+   * @param {number} delaySeconds - Delay in seconds before showing notification
+   */
+  const scheduleNotification = async (title, body, delaySeconds) => {
+    try {
+      // Ensure delay is at least 1 second and is a valid number
+      const delay = Math.max(1, Math.floor(Number(delaySeconds)));
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          sound: true,
+          data: { screen: 'VideoPlayer' },
+        },
+        trigger: {
+          type: 'timeInterval',
+          seconds: delay,
+          repeats: false,
+        },
+      });
+      setSnackbarMessage(`Notification scheduled! It will appear in ${delay} seconds.`);
+      setSnackbarVisible(true);
+    } catch (error) {
+      console.error('Error scheduling notification:', error);
+      Alert.alert('Error', 'Failed to schedule notification');
+    }
+  };
+
+  // ==================== Event Handlers ====================
+
+  /**
+   * Handle WebView load completion - send auto-notification
+   */
   const handleLoadEnd = async () => {
     setLoading(false);
     await scheduleNotification(
@@ -80,7 +122,19 @@ export default function WebViewScreen() {
     );
   };
 
-  // Notification button handlers
+  /**
+   * Handle WebView load errors
+   */
+  const handleWebViewError = (syntheticEvent) => {
+    const { nativeEvent } = syntheticEvent;
+    console.warn('WebView error: ', nativeEvent);
+    setLoading(false);
+    Alert.alert('Error', 'Failed to load the website');
+  };
+
+  /**
+   * Handle Notification 1 button press - schedule notification with 3 second delay
+   */
   const handleNotification1 = () => {
     scheduleNotification(
       'Hello from WebView! 👋',
@@ -89,6 +143,9 @@ export default function WebViewScreen() {
     );
   };
 
+  /**
+   * Handle Notification 2 button press - schedule notification with 4 second delay
+   */
   const handleNotification2 = () => {
     scheduleNotification(
       'Second Notification 🔔',
@@ -97,29 +154,31 @@ export default function WebViewScreen() {
     );
   };
 
+  // ==================== Render ====================
+
   return (
     <View style={styles.container}>
+      {/* WebView Container */}
       <View style={styles.webViewContainer}>
+        {/* Loading Indicator */}
         {loading && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6200ee" />
             <Text style={styles.loadingText}>Loading website...</Text>
           </View>
         )}
+
+        {/* WebView */}
         <WebView
           ref={webViewRef}
           source={{ uri: 'https://expo.dev' }}
           style={styles.webView}
           onLoadEnd={handleLoadEnd}
-          onError={(syntheticEvent) => {
-            const { nativeEvent } = syntheticEvent;
-            console.warn('WebView error: ', nativeEvent);
-            setLoading(false);
-            Alert.alert('Error', 'Failed to load the website');
-          }}
+          onError={handleWebViewError}
         />
       </View>
 
+      {/* Notification Controls Card */}
       <Card style={styles.card} mode="elevated">
         <Card.Content>
           <Text variant="titleMedium" style={styles.cardTitle}>
@@ -129,6 +188,7 @@ export default function WebViewScreen() {
             Tap the buttons below to schedule notifications with delays
           </Text>
 
+          {/* Notification Buttons */}
           <View style={styles.buttonContainer}>
             <Button
               mode="contained"
@@ -153,6 +213,7 @@ export default function WebViewScreen() {
             </Button>
           </View>
 
+          {/* Navigation Button */}
           <Button
             mode="outlined"
             onPress={() => navigation.navigate('VideoPlayer')}
@@ -165,6 +226,7 @@ export default function WebViewScreen() {
         </Card.Content>
       </Card>
 
+      {/* Snackbar for user feedback */}
       <Portal>
         <Snackbar
           visible={snackbarVisible}
@@ -181,6 +243,8 @@ export default function WebViewScreen() {
     </View>
   );
 }
+
+// ==================== Styles ====================
 
 const styles = StyleSheet.create({
   container: {
@@ -206,27 +270,27 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: moderateVerticalScale(10),
     color: '#6200ee',
   },
   card: {
-    margin: 16,
-    marginTop: 8,
+    margin: moderateScale(16),
+    marginTop: moderateVerticalScale(8),
   },
   cardTitle: {
-    marginBottom: 4,
+    marginBottom: moderateVerticalScale(4),
     fontWeight: 'bold',
   },
   cardSubtitle: {
-    marginBottom: 16,
+    marginBottom: moderateVerticalScale(16),
     color: '#666',
   },
   buttonContainer: {
-    gap: 12,
-    marginBottom: 12,
+    gap: moderateVerticalScale(12),
+    marginBottom: moderateVerticalScale(12),
   },
   button: {
-    marginBottom: 8,
+    marginBottom: moderateVerticalScale(8),
   },
   button1: {
     // Styled via buttonColor prop
@@ -235,7 +299,7 @@ const styles = StyleSheet.create({
     // Styled via buttonColor prop
   },
   videoButton: {
-    marginTop: 8,
+    marginTop: moderateVerticalScale(8),
     borderColor: '#6200ee',
   },
 });

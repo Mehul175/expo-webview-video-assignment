@@ -1,30 +1,73 @@
+/**
+ * VideoPlayerScreen Component
+ * 
+ * A YouTube-like video player with custom controls:
+ * - Single tap: Toggle play/pause with overlay
+ * - Double tap left: Seek backward 10 seconds
+ * - Double tap right: Seek forward 10 seconds
+ * - Draggable seekbar for precise seeking
+ * - Fullscreen orientation toggle
+ * - Buffering loader indicator
+ * - Responsive design for portrait and landscape modes
+ */
+
 import React, { useState, useRef } from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, Pressable, PanResponder, ActivityIndicator } from 'react-native';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Card, Text, IconButton, ProgressBar } from 'react-native-paper';
+import { Text, IconButton } from 'react-native-paper';
+import { moderateScale, moderateVerticalScale } from 'react-native-size-matters';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
-const { width, height } = Dimensions.get('window');
+// Constants
+const HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+const DOUBLE_TAP_DELAY = 300; // milliseconds
+const PLAY_PAUSE_OVERLAY_DURATION = 2500; // milliseconds
+const SEEK_INDICATOR_DURATION = 1000; // milliseconds
+const PLAYER_UPDATE_INTERVAL = 100; // milliseconds
 
 export default function VideoPlayerScreen() {
   const navigation = useNavigation();
+
+  // ==================== State Management ====================
   const [isMuted, setIsMuted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showPlayPauseOverlay, setShowPlayPauseOverlay] = useState(false);
+  const [seekbarValue, setSeekbarValue] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showSeekIndicator, setShowSeekIndicator] = useState(false);
+  const [seekDirection, setSeekDirection] = useState(null); // 'forward' or 'backward'
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
+  const [seekbarPosition, setSeekbarPosition] = useState(0);
+  const [isBuffering, setIsBuffering] = useState(false);
 
-  const HLS_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+  // ==================== Refs ====================
+  const lastTapRef = useRef(null);
+  const overlayTimeoutRef = useRef(null);
+  const seekIndicatorTimeoutRef = useRef(null);
+  const seekbarTrackRef = useRef(null);
 
+  // ==================== Video Player Setup ====================
   const player = useVideoPlayer(HLS_URL);
+  const seekbarPadding = moderateScale(16);
+  const seekbarWidth = screenData.width - (seekbarPadding * 2);
 
-  // Configure player on mount
+  // ==================== Effects ====================
+
+  /**
+   * Configure video player settings on mount
+   */
   React.useEffect(() => {
     if (!player) return;
     player.loop = false;
     player.muted = isMuted;
   }, [player, isMuted]);
 
-  // Auto-play on mount
+  /**
+   * Auto-play video when player is ready
+   */
   React.useEffect(() => {
     if (player) {
       player.play();
@@ -32,21 +75,102 @@ export default function VideoPlayerScreen() {
     }
   }, [player]);
 
-  // Update state from player
+  /**
+   * Update player state and seekbar position at regular intervals
+   */
   React.useEffect(() => {
     if (!player) return;
 
     const interval = setInterval(() => {
-      if (player) {
-        setCurrentTime(player.currentTime || 0);
-        setDuration(player.duration || 0);
+      if (player && !isDragging) {
+        const time = player.currentTime || 0;
+        const dur = player.duration || 0;
+        setCurrentTime(time);
+        setDuration(dur);
         setIsPlaying(player.playing || false);
+
+        // Check buffering status
+        const status = player.status || 'idle';
+        setIsBuffering(status === 'loading');
+
+        // Update seekbar position based on video progress
+        if (dur > 0) {
+          const progress = time / dur;
+          setSeekbarValue(progress);
+          setSeekbarPosition(progress * seekbarWidth);
+        }
       }
-    }, 100);
+    }, PLAYER_UPDATE_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [player]);
+  }, [player, isDragging, seekbarWidth]);
 
+  /**
+   * Auto-hide play/pause overlay after specified duration
+   */
+  React.useEffect(() => {
+    if (showPlayPauseOverlay) {
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+      overlayTimeoutRef.current = setTimeout(() => {
+        setShowPlayPauseOverlay(false);
+      }, PLAY_PAUSE_OVERLAY_DURATION);
+    }
+    return () => {
+      if (overlayTimeoutRef.current) {
+        clearTimeout(overlayTimeoutRef.current);
+      }
+    };
+  }, [showPlayPauseOverlay]);
+
+  /**
+   * Auto-hide seek indicator after specified duration
+   */
+  React.useEffect(() => {
+    if (showSeekIndicator) {
+      if (seekIndicatorTimeoutRef.current) {
+        clearTimeout(seekIndicatorTimeoutRef.current);
+      }
+      seekIndicatorTimeoutRef.current = setTimeout(() => {
+        setShowSeekIndicator(false);
+        setSeekDirection(null);
+      }, SEEK_INDICATOR_DURATION);
+    }
+    return () => {
+      if (seekIndicatorTimeoutRef.current) {
+        clearTimeout(seekIndicatorTimeoutRef.current);
+      }
+    };
+  }, [showSeekIndicator]);
+
+  /**
+   * Listen to screen dimension changes for orientation updates
+   */
+  React.useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenData(window);
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  /**
+   * Restore default orientation when leaving the screen
+   */
+  React.useEffect(() => {
+    return () => {
+      ScreenOrientation.unlockAsync().catch(console.error);
+    };
+  }, []);
+
+  // ==================== Video Control Functions ====================
+
+  /**
+   * Toggle video play/pause state
+   */
   const togglePlayPause = () => {
     if (!player) return;
     if (player.playing) {
@@ -58,6 +182,9 @@ export default function VideoPlayerScreen() {
     }
   };
 
+  /**
+   * Toggle mute/unmute state
+   */
   const toggleMute = () => {
     if (!player) return;
     const newMutedState = !isMuted;
@@ -65,6 +192,9 @@ export default function VideoPlayerScreen() {
     setIsMuted(newMutedState);
   };
 
+  /**
+   * Seek video forward by 10 seconds
+   */
   const seekForward = () => {
     if (!player) return;
     const newPosition = Math.min(
@@ -75,6 +205,9 @@ export default function VideoPlayerScreen() {
     setCurrentTime(newPosition);
   };
 
+  /**
+   * Seek video backward by 10 seconds
+   */
   const seekBackward = () => {
     if (!player) return;
     const newPosition = Math.max(player.currentTime - 10, 0);
@@ -82,6 +215,11 @@ export default function VideoPlayerScreen() {
     setCurrentTime(newPosition);
   };
 
+  /**
+   * Format seconds into MM:SS format
+   * @param {number} seconds - Time in seconds
+   * @returns {string} Formatted time string
+   */
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const totalSeconds = Math.floor(seconds);
@@ -90,19 +228,159 @@ export default function VideoPlayerScreen() {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  /**
+   * Calculate video progress percentage
+   * @returns {number} Progress value between 0 and 1
+   */
   const getProgress = () => {
     if (!duration || !currentTime) return 0;
     return currentTime / duration;
   };
 
+  /**
+   * Toggle screen orientation between portrait and landscape
+   */
+  const toggleOrientation = async () => {
+    try {
+      const currentOrientation = await ScreenOrientation.getOrientationAsync();
+      const isLandscape =
+        currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_LEFT ||
+        currentOrientation === ScreenOrientation.Orientation.LANDSCAPE_RIGHT;
+
+      if (isLandscape) {
+        // Switch to portrait
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      } else {
+        // Switch to landscape
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      }
+    } catch (error) {
+      console.error('Error toggling orientation:', error);
+    }
+  };
+
+  // ==================== Touch Event Handlers ====================
+
+  /**
+   * Handle single tap on video - show play/pause overlay and toggle playback
+   */
+  const handleSingleTap = () => {
+    setShowPlayPauseOverlay(true);
+    togglePlayPause();
+  };
+
+  /**
+   * Handle double tap on video - seek forward or backward based on tap position
+   * @param {Object} event - Touch event object
+   */
+  const handleDoubleTap = (event) => {
+    const { locationX } = event.nativeEvent;
+    const videoWidth = screenData.width;
+    const isLeftHalf = locationX < videoWidth / 2;
+
+    if (isLeftHalf) {
+      seekBackward();
+      setSeekDirection('backward');
+    } else {
+      seekForward();
+      setSeekDirection('forward');
+    }
+    setShowSeekIndicator(true);
+  };
+
+  /**
+   * Handle tap on video area - detect single vs double tap
+   * @param {Object} event - Touch event object
+   */
+  const handleVideoTap = (event) => {
+    const now = Date.now();
+
+    if (lastTapRef.current && (now - lastTapRef.current < DOUBLE_TAP_DELAY)) {
+      // Double tap detected
+      handleDoubleTap(event);
+      lastTapRef.current = null;
+    } else {
+      // Single tap - wait to see if it's a double tap
+      lastTapRef.current = now;
+      setTimeout(() => {
+        if (lastTapRef.current === now) {
+          handleSingleTap();
+          lastTapRef.current = null;
+        }
+      }, DOUBLE_TAP_DELAY);
+    }
+  };
+
+  /**
+   * Handle seekbar press - seek to tapped position
+   * @param {Object} event - Touch event object
+   */
+  const handleSeekbarPress = (event) => {
+    if (seekbarTrackRef.current) {
+      seekbarTrackRef.current.measure((x, y, trackWidth, trackHeight, pageX, pageY) => {
+        const touchX = event.nativeEvent.pageX - pageX;
+        const newProgress = Math.max(0, Math.min(1, touchX / trackWidth));
+        setSeekbarValue(newProgress);
+        setSeekbarPosition(newProgress * trackWidth);
+
+        if (player && duration > 0) {
+          const newTime = newProgress * duration;
+          player.currentTime = newTime;
+          setCurrentTime(newTime);
+        }
+      });
+    }
+  };
+
+  /**
+   * Pan responder for draggable seekbar functionality
+   */
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (evt) => {
+        setIsDragging(true);
+        if (seekbarTrackRef.current) {
+          seekbarTrackRef.current.measure((x, y, trackWidth, trackHeight, pageX, pageY) => {
+            const touchX = evt.nativeEvent.pageX - pageX;
+            const newProgress = Math.max(0, Math.min(1, touchX / trackWidth));
+            setSeekbarValue(newProgress);
+            setSeekbarPosition(newProgress * trackWidth);
+          });
+        }
+      },
+      onPanResponderMove: (evt, gestureState) => {
+        if (seekbarTrackRef.current) {
+          seekbarTrackRef.current.measure((x, y, trackWidth, trackHeight, pageX, pageY) => {
+            const touchX = evt.nativeEvent.pageX - pageX;
+            const newProgress = Math.max(0, Math.min(1, touchX / trackWidth));
+            setSeekbarValue(newProgress);
+            setSeekbarPosition(newProgress * trackWidth);
+          });
+        }
+      },
+      onPanResponderRelease: () => {
+        if (player && duration > 0) {
+          const newTime = seekbarValue * duration;
+          player.currentTime = newTime;
+          setCurrentTime(newTime);
+        }
+        setIsDragging(false);
+      },
+    })
+  ).current;
+
+  // ==================== Render ====================
+
   return (
     <View style={styles.container}>
-      {/* Back Button */}
+      {/* Header with back button */}
       <View style={styles.header}>
         <IconButton
           icon="arrow-left"
           iconColor="#fff"
-          size={28}
+          size={moderateScale(28)}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         />
@@ -112,105 +390,115 @@ export default function VideoPlayerScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      {/* Video Player */}
+      {/* Video Player Container */}
       <View style={styles.videoContainer}>
-        {player && (
-          <VideoView
-            player={player}
-            style={styles.video}
-            allowsFullscreen={true}
-            allowsPictureInPicture={true}
-            contentFit="contain"
-            nativeControls={false}
-          />
-        )}
-      </View>
+        <Pressable style={styles.videoPressable} onPress={handleVideoTap}>
+          {player && (
+            <VideoView
+              player={player}
+              style={styles.video}
+              allowsFullscreen={true}
+              allowsPictureInPicture={true}
+              contentFit="contain"
+              nativeControls={false}
+            />
+          )}
 
-      {/* Controls Card */}
-      <Card style={styles.controlsCard} mode="elevated">
-        <Card.Content>
-          {/* Progress Bar */}
-          <View style={styles.progressContainer}>
-            <ProgressBar progress={getProgress()} color="#6200ee" style={styles.progressBar} />
-            <View style={styles.timeContainer}>
-              <Text variant="bodySmall" style={styles.timeText}>
-                {formatTime(currentTime)}
-              </Text>
-              <Text variant="bodySmall" style={styles.timeText}>
-                {formatTime(duration)}
-              </Text>
+          {/* Play/Pause Overlay - appears on single tap */}
+          {showPlayPauseOverlay && (
+            <View style={styles.playPauseOverlay}>
+              <IconButton
+                icon={isPlaying ? 'pause' : 'play'}
+                iconColor="#fff"
+                size={moderateScale(80)}
+                style={styles.playPauseIcon}
+                onPress={togglePlayPause}
+              />
             </View>
+          )}
+
+          {/* Seek Indicator Overlay - shows +10 or -10 on double tap */}
+          {showSeekIndicator && (
+            <View
+              style={[
+                styles.seekIndicatorOverlay,
+                seekDirection === 'forward' ? styles.seekIndicatorRight : styles.seekIndicatorLeft
+              ]}
+            >
+              <View style={styles.seekIndicatorContainer}>
+                {seekDirection === 'forward' ? (
+                  <Text style={styles.seekIndicatorText}>+10 {'>'}</Text>
+                ) : (
+                  <Text style={styles.seekIndicatorText}>{'<'} -10</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Buffering Loader Overlay */}
+          {isBuffering && (
+            <View style={styles.bufferingOverlay}>
+              <ActivityIndicator size="large" color="#fff" />
+              <Text style={styles.bufferingText}>Buffering...</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {/* Draggable Seekbar with controls */}
+        <View style={styles.seekbarContainer}>
+          {/* Fullscreen button header */}
+          <View style={styles.seekbarHeader}>
+            <View style={styles.seekbarHeaderLeft} />
+            <IconButton
+              icon="fullscreen"
+              iconColor="#fff"
+              size={moderateScale(24)}
+              onPress={toggleOrientation}
+              style={styles.fullscreenButton}
+            />
           </View>
 
-          {/* Main Controls */}
-          <View style={styles.mainControls}>
-            <Button
-              mode="contained-tonal"
-              onPress={seekBackward}
-              icon="rewind-10"
-              style={styles.controlButton}
-              buttonColor="#e0e0e0"
-              textColor="#000"
-            >
-              10s
-            </Button>
+          {/* Seekbar track with progress and thumb */}
+          <Pressable
+            ref={seekbarTrackRef}
+            style={styles.seekbarTrack}
+            onPress={handleSeekbarPress}
+            {...panResponder.panHandlers}
+          >
+            <View
+              style={[
+                styles.seekbarProgress,
+                {
+                  width: seekbarPosition,
+                },
+              ]}
+            />
+            <View
+              style={[
+                styles.seekbarThumb,
+                {
+                  left: Math.max(0, seekbarPosition - moderateScale(8)),
+                },
+              ]}
+            />
+          </Pressable>
 
-            <Button
-              mode="contained"
-              onPress={togglePlayPause}
-              icon={isPlaying ? 'pause' : 'play'}
-              style={[styles.controlButton, styles.playButton]}
-              buttonColor="#6200ee"
-              textColor="#fff"
-              contentStyle={styles.playButtonContent}
-            >
-              {isPlaying ? 'Pause' : 'Play'}
-            </Button>
-
-            <Button
-              mode="contained-tonal"
-              onPress={seekForward}
-              icon="fast-forward-10"
-              style={styles.controlButton}
-              buttonColor="#e0e0e0"
-              textColor="#000"
-            >
-              10s
-            </Button>
+          {/* Time display */}
+          <View style={styles.timeContainer}>
+            <Text variant="bodySmall" style={styles.timeText}>
+              {formatTime(isDragging ? seekbarValue * duration : currentTime)}
+            </Text>
+            <Text variant="bodySmall" style={styles.timeText}>
+              {formatTime(duration)}
+            </Text>
           </View>
-
-          {/* Secondary Controls */}
-          <View style={styles.secondaryControls}>
-            <Button
-              mode={isMuted ? 'contained' : 'outlined'}
-              onPress={toggleMute}
-              icon={isMuted ? 'volume-off' : 'volume-high'}
-              style={styles.secondaryButton}
-              buttonColor={isMuted ? '#f44336' : undefined}
-              textColor={isMuted ? '#fff' : '#6200ee'}
-            >
-              {isMuted ? 'Muted' : 'Sound'}
-            </Button>
-          </View>
-
-          {/* Video Info */}
-          <Card style={styles.infoCard} mode="outlined">
-            <Card.Content>
-              <Text variant="labelMedium" style={styles.infoLabel}>
-                Video Status
-              </Text>
-              <Text variant="bodySmall" style={styles.infoText}>
-                {player
-                  ? `Playing HLS stream • ${isPlaying ? 'Playing' : 'Paused'}`
-                  : 'Loading video...'}
-              </Text>
-            </Card.Content>
-          </Card>
-        </Card.Content>
-      </Card>
+        </View>
+      </View>
     </View>
   );
 }
+
+// ==================== Styles ====================
 
 const styles = StyleSheet.create({
   container: {
@@ -221,9 +509,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 50,
-    paddingHorizontal: 8,
-    paddingBottom: 8,
+    paddingTop: moderateVerticalScale(50),
+    paddingHorizontal: moderateScale(8),
+    paddingBottom: moderateVerticalScale(8),
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   backButton: {
@@ -236,7 +524,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   placeholder: {
-    width: 48,
+    width: moderateScale(48),
   },
   videoContainer: {
     flex: 1,
@@ -244,60 +532,120 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#000',
   },
+  videoPressable: {
+    width: '100%',
+    height: '50%',
+    position: 'relative',
+  },
   video: {
-    width: width,
-    height: height * 0.5,
+    width: '100%',
+    height: '100%',
   },
-  controlsCard: {
-    margin: 16,
-    marginTop: 8,
-    maxHeight: height * 0.4,
+  playPauseOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  progressContainer: {
-    marginBottom: 16,
+  playPauseIcon: {
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    marginBottom: 8,
+  seekIndicatorOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  seekIndicatorLeft: {
+    left: moderateScale(20),
+    alignItems: 'flex-start',
+  },
+  seekIndicatorRight: {
+    right: moderateScale(20),
+    alignItems: 'flex-end',
+  },
+  seekIndicatorContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateVerticalScale(8),
+    borderRadius: moderateScale(6),
+  },
+  seekIndicatorText: {
+    color: '#fff',
+    fontSize: moderateScale(16),
+    fontWeight: 'bold',
+  },
+  bufferingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  bufferingText: {
+    color: '#fff',
+    fontSize: moderateScale(14),
+    marginTop: moderateVerticalScale(12),
+  },
+  seekbarContainer: {
+    width: '100%',
+    paddingHorizontal: moderateScale(16),
+    paddingVertical: moderateVerticalScale(12),
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  seekbarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: moderateVerticalScale(8),
+  },
+  seekbarHeaderLeft: {
+    flex: 1,
+  },
+  fullscreenButton: {
+    margin: 0,
+    padding: 0,
+  },
+  seekbarTrack: {
+    height: moderateVerticalScale(4),
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: moderateScale(2),
+    position: 'relative',
+    marginBottom: moderateVerticalScale(8),
+    justifyContent: 'center',
+  },
+  seekbarProgress: {
+    height: moderateVerticalScale(4),
+    backgroundColor: '#6200ee',
+    borderRadius: moderateScale(2),
+    position: 'absolute',
+    left: 0,
+    top: 0,
+  },
+  seekbarThumb: {
+    width: moderateScale(16),
+    height: moderateScale(16),
+    borderRadius: moderateScale(8),
+    backgroundColor: '#6200ee',
+    position: 'absolute',
+    top: moderateVerticalScale(-6),
+    left: 0,
+    zIndex: 1,
   },
   timeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   timeText: {
-    color: '#666',
-  },
-  mainControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  controlButton: {
-    minWidth: 100,
-  },
-  playButton: {
-    minWidth: 120,
-  },
-  playButtonContent: {
-    paddingVertical: 8,
-  },
-  secondaryControls: {
-    marginBottom: 16,
-  },
-  secondaryButton: {
-    width: '100%',
-  },
-  infoCard: {
-    marginTop: 8,
-  },
-  infoLabel: {
-    marginBottom: 4,
-    color: '#6200ee',
-    fontWeight: 'bold',
-  },
-  infoText: {
-    color: '#666',
+    color: '#fff',
+    fontSize: moderateScale(12),
   },
 });
